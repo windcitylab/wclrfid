@@ -67,7 +67,7 @@
         NSString *name = [[alertView textFieldAtIndex:0] text];
         [d appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
         [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
-        self.waitingAlert = [[UIAlertView alloc] initWithTitle:nil message:@"Scan RFID Card" delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
+        self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Scan RFID Card" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
         [self.waitingAlert show];
     }
 }
@@ -84,7 +84,7 @@
     int byte[1]={READ_RFID_TAG};
     NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
     [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
-    self.waitingAlert = [[UIAlertView alloc] initWithTitle:nil message:@"Scan RFID Card" delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
+    self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Scan RFID Card" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
     [self.waitingAlert show];
 }
 
@@ -92,7 +92,7 @@
     [self requestList];
 }
 - (IBAction)addButtonTapped:(id)sender {
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Name" message:@"Enter name:" delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"OK", nil];
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Name" message:nil delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"OK", nil];
     alert.alertViewStyle = UIAlertViewStylePlainTextInput;
     [alert show];
 }
@@ -100,14 +100,14 @@
     int byte[1]={ENTER_NORMAL_OPERATION_MODE};
     NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
     [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
-    self.waitingAlert = [[UIAlertView alloc] initWithTitle:nil message:@"Entering Normal Operation Mode" delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
+    self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Entering Normal Operation Mode" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
     [self.waitingAlert show];
 }
 - (IBAction)enterCommandModeButtonTapped:(id)sender {
     int byte[1]={ENTER_COMMAND_MODE};
     NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
     [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
-    self.waitingAlert = [[UIAlertView alloc] initWithTitle:nil message:@"Entering Command Operation Mode.  You will need to scan a tag to bump it into command mode." delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
+    self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Entering Command Operation Mode.  You will need to scan a tag to bump it into command mode." message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
     [self.waitingAlert show];
 }
 
@@ -239,8 +239,8 @@
         if (self.receivingGoodTagStatus)
         {
             self.name = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            NSString *response =[NSString stringWithFormat:@"%@ has this tag.\n %@",self.name, self.rfidTagID];
-            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Tag Valid" message:response delegate:nil cancelButtonTitle:nil otherButtonTitles:@"Hooray!", nil];
+            NSString *response =[NSString stringWithFormat:@"Tag %@ for %@ is authorized.",self.rfidTagID,self.name];
+            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:response message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles:@"Hooray!", nil];
             [alert show];
             self.receivingGoodTagStatus = NO;
         }
