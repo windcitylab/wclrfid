@@ -59,6 +59,8 @@
 @end
 
 @implementation WCLViewController
+
+
 - (void) alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {
     if (buttonIndex == 1) {
@@ -80,6 +82,16 @@
     [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
     [self.waitingAlert dismissWithClickedButtonIndex:0 animated:YES];
 }
+-(void)timerFired:(NSTimer *)timer
+{
+    NSLog(@"Must be in normal operation mode!");
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil message:@"Lock is in normal operation mode." delegate:nil cancelButtonTitle:nil otherButtonTitles:@"OK", nil];
+    [alert show];
+    [self refreshButtonsToCommandMode:NO];
+}
+
+
+#pragma mark - Button Methods
 - (IBAction)RFIDScanButtonTapped:(id)sender {
     int byte[1]={READ_RFID_TAG};
     NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
@@ -110,6 +122,23 @@
     self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Entering Command Operation Mode.  You will need to scan a tag to bump it into command mode." message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
     [self.waitingAlert show];
 }
+-(void)refreshButtonsToCommandMode:(BOOL)inCommandMode
+{
+    if (inCommandMode) {
+        self.enterNormalOperationModeButton.enabled = YES;
+        self.enterCommandModeButton.enabled = NO;
+        self.refreshButton.enabled = YES;
+        self.rfidScanButton.enabled = YES;
+        self.addButton.enabled = YES;
+    }
+    else {
+        self.enterNormalOperationModeButton.enabled = NO;
+        self.enterCommandModeButton.enabled = YES;
+        self.refreshButton.enabled = NO;
+        self.rfidScanButton.enabled = NO;
+        self.addButton.enabled = NO;
+    }
+}
 
 #pragma mark - tableview delegates
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
@@ -135,31 +164,8 @@
         [self.RFIDReader writeValue:data forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
     }
 }
--(void)refreshButtonsToCommandMode:(BOOL)inCommandMode
-{
-    if (inCommandMode) {
-        self.enterNormalOperationModeButton.enabled = YES;
-        self.enterCommandModeButton.enabled = NO;
-        self.refreshButton.enabled = YES;
-        self.rfidScanButton.enabled = YES;
-        self.addButton.enabled = YES;
-    }
-    else {
-        self.enterNormalOperationModeButton.enabled = NO;
-        self.enterCommandModeButton.enabled = YES;
-        self.refreshButton.enabled = NO;
-        self.rfidScanButton.enabled = NO;
-        self.addButton.enabled = NO;
-    }
-}
--(void)timerFired:(NSTimer *)timer
-{
-    NSLog(@"Must be in normal operation mode!");
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil message:@"Lock is in normal operation mode." delegate:nil cancelButtonTitle:nil otherButtonTitles:@"OK", nil];
-    [alert show];
-    [self refreshButtonsToCommandMode:NO];
-}
-#pragma mark - core bluetooth delegate methods
+
+#pragma mark - peripheral delegates
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error
 {
     NSData *data = characteristic.value;
@@ -275,6 +281,8 @@
 {
     [self.RFIDReader discoverCharacteristics:nil forService:peripheral.services.firstObject];
 }
+#pragma mark - central manager delegates
+
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral
 {
     self.RFIDReader.delegate = self;
@@ -309,6 +317,8 @@
             break;
     }
 }
+
+#pragma mark - view lifecycle
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
