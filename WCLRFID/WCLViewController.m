@@ -17,6 +17,9 @@
 #define ENTER_COMMAND_MODE 0x05
 #define ENTER_NORMAL_OPERATION_MODE 0x06
 #define SENDING_ENTERING_NORMAL_OPERATION_MODE 0x07
+#define OPEN_BOLT 0x08
+#define CLOSE_BOLT 0x09
+#define RESET_COMMAND 0x0A
 #define STATUS_CHECK 0xFF
 
 // Messages coming in from the Arduino
@@ -29,6 +32,7 @@
 
 #import "WCLViewController.h"
 #import <CoreBluetooth/CoreBluetooth.h>
+#import "WCLRFID-Swift.h"
 
 @interface WCLViewController () <CBCentralManagerDelegate, CBPeripheralDelegate, UITableViewDelegate, UITableViewDataSource, UIAlertViewDelegate>
 
@@ -63,14 +67,44 @@
 
 - (void) alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {
-    if (buttonIndex == 1) {
-        int byte[1]={0x02};
-        NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
-        NSString *name = [[alertView textFieldAtIndex:0] text];
-        [d appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
-        [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
-        self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Scan RFID Card" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
-        [self.waitingAlert show];
+    if (alertView.tag != 99) {
+        if (buttonIndex == 1) {
+            int byte[1]={0x02};
+            NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
+            NSString *name = [[alertView textFieldAtIndex:0] text];
+            [d appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
+            [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
+            self.waitingAlert = [[UIAlertView alloc] initWithTitle:@"Scan RFID Card" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles: nil];
+            [self.waitingAlert show];
+        }
+    }
+    else
+    {
+        switch (buttonIndex) {
+            case 1: // Open
+            {
+                int byte[1]={OPEN_BOLT};
+                NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
+                [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
+            }
+                break;
+            case 2: // Close
+            {
+                int byte[1]={CLOSE_BOLT};
+                NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
+                [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
+            }
+                break;
+            case 3: // Reset
+            {
+                int byte[1]={RESET_COMMAND};
+                NSMutableData *d = [NSMutableData dataWithBytes:byte length:1];
+                [self.RFIDReader writeValue:d forCharacteristic:self.writeWithoutResponse type:CBCharacteristicWriteWithoutResponse];
+            }
+
+            default:
+                break;
+        }
     }
 }
 - (void) requestList
@@ -138,6 +172,14 @@
         self.rfidScanButton.enabled = NO;
         self.addButton.enabled = NO;
     }
+}
+
+- (IBAction)actionButtonTapped:(id)sender {
+
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Lock Operation" message:nil delegate:nil cancelButtonTitle:@"Cancel" otherButtonTitles:@"Open",@"Close", @"Reset",nil];
+    alert.tag = 99;
+    alert.delegate = self;
+    [alert show];
 }
 
 #pragma mark - tableview delegates
@@ -322,7 +364,6 @@
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-    [self refreshButtonsToCommandMode:YES];
 }
 - (void)viewDidLoad
 {
@@ -330,10 +371,13 @@
     self.centralManager = [[CBCentralManager alloc] initWithDelegate:self queue:nil];
     self.names = [NSMutableArray array];
     self.receivingList = NO;
+    [self refreshButtonsToCommandMode:YES];
+    WCLConstants *constant;
     
-    self.viewStatus = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 32, 25)];
-    self.viewStatus.backgroundColor = [UIColor whiteColor];
-    self.navigationItem.titleView = self.viewStatus;
+
+//    self.viewStatus = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 32, 25)];
+//    self.viewStatus.backgroundColor = [UIColor whiteColor];
+//    self.navigationItem.titleView = self.viewStatus;
 }
 
 - (void)didReceiveMemoryWarning
