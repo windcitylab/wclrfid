@@ -5,6 +5,7 @@
 #include <EEPROM.h>
 #include <Wire.h>
 #include <Adafruit_NeoPixel.h>
+#include <avr/wdt.h>
 
 #include <Adafruit_NFCShield_I2C.h>
 
@@ -17,6 +18,9 @@
 #define READ_RFID_TAG 0x04
 #define ENTER_COMMAND_MODE 0x05
 #define ENTER_NORMAL_OPERATION_MODE 0x06
+#define OPEN_BOLT 0x08
+#define CLOSE_BOLT 0x09
+#define RESET_BOARD 0x0A
 #define STATUS_CHECK 0xFF
 
 // Commands going to the iPhone
@@ -37,6 +41,7 @@
 #define kBoltServoPin 5
 #define boltStateLED 6
 #define NeopixelPin 7
+#define kNumberOfPixels 16
 
 #define sonarPin A0
 #define pingEveryIteration 5000
@@ -51,7 +56,7 @@ bool inCommandMode = true;
 bool RFIDWaitingForCard = false;
 
 Adafruit_NFCShield_I2C nfc(IRQ, RESET);
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NeopixelPin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(kNumberOfPixels, NeopixelPin, NEO_GRB + NEO_KHZ800);
 
 Servo boltServo;
 
@@ -66,6 +71,14 @@ LinkedListEEPROM myEEPROM;
 //void retrieveRecordAtSlot(int slotNumber, Record &record);
 void sendRecordToiPhone(Record record);
 bool rfidTagValid(byte rfidTag[RFID_TAG_LENGTH], Record &record);
+
+void resetArduino()
+{
+  wdt_enable(WDTO_15MS);
+  while (1)
+  {
+  }
+}
 
 void sendRecordToiPhone(Record record)
 {
@@ -104,22 +117,28 @@ void handleRFIDTag(unsigned char uid[RFID_TAG_LENGTH])
   Record record;
   if (rfidTagValid(uid,record))
   {
-    ble_write(SENDING_GOOD_TAG_STATUS);
-    ble_do_events();
-    ble_write_bytes(uid,RFID_TAG_LENGTH);
-    ble_do_events();
-    ble_write_bytes(record.name,RECORD_NAME_LENGTH);
-    ble_do_events();
+    if (inCommandMode)
+    {
+      ble_write(SENDING_GOOD_TAG_STATUS);
+      ble_do_events();
+      ble_write_bytes(uid,RFID_TAG_LENGTH);
+      ble_do_events();
+      ble_write_bytes(record.name,RECORD_NAME_LENGTH);
+      ble_do_events();
+    }
     boltShouldBeOpen = true;
     colorWipe(strip.Color(0, 255, 0), 50);
     Serial.println("Tag is valid!");
   }
   else 
   {
-    ble_write(SENDING_BAD_TAG_STATUS);
-    ble_do_events();
-    ble_write_bytes(uid,RFID_TAG_LENGTH);
-    ble_do_events();
+    if (inCommandMode)
+    {
+      ble_write(SENDING_BAD_TAG_STATUS);
+      ble_do_events();
+      ble_write_bytes(uid,RFID_TAG_LENGTH);
+      ble_do_events();
+    }
     boltShouldBeOpen = false;
     colorWipe(strip.Color(255, 0, 0), 50);
     Serial.println("Tag is not valid!");
@@ -153,7 +172,7 @@ void setServoOpen(bool yesNo)
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   
   pingTimer = 0;
   
@@ -176,6 +195,8 @@ void setup() {
   ble_do_events();
   time = 1;
   watchDogTimer = 0;
+  colorWipe(strip.Color(0, 0, 255), 50);
+  delay(2000);
   setDefaultColor();
 }
 
@@ -216,6 +237,24 @@ bool sonarDetectedCloseObject()
   return (duration > 0);
 }
 
+void checkForOpenCloseReset(char value)
+{
+      if (value == OPEN_BOLT)
+      {
+        boltShouldBeOpen = true;
+        Serial.println("opening bolt from iphone");
+      }
+      if (value == CLOSE_BOLT)
+      {
+        boltShouldBeOpen = false;
+        Serial.println("closing bolt from iphone");
+      }
+      if (value == RESET_BOARD)
+      {
+        resetArduino();
+        Serial.println("reseting arduino commanded from iphone");
+      }
+}
 void loop() {
   if (pingTimer >= pingEveryIteration)
   {
@@ -240,21 +279,18 @@ void loop() {
     }
   }
   
-//  Serial.println(digitalRead(4));
   if (boltShouldBeOpen & !boltIsOpen)
   {
     setServoOpen(true);  // Open the bolt
     holdBoltOpenTimer = 65535;
   }
-  if (holdBoltOpenTimer == 1)
-  {
-    setDefaultColor();
-  }
+
   if (holdBoltOpenTimer > 0) holdBoltOpenTimer--;
-  if ((holdBoltOpenTimer == 0) & boltIsOpen) {
+  if (holdBoltOpenTimer == 0) {
     boltShouldBeOpen = false;
     setDefaultColor();
   }
+
   if (!boltShouldBeOpen & boltIsOpen)
   {
     if (digitalRead(doorClosedPin) == LOW)
@@ -294,6 +330,7 @@ void loop() {
           slotNumber = record.nextSlotNumber;
         }
       }
+      checkForOpenCloseReset(value);
       if (value == ADD_RECORD)
       {
         Serial.println("Waiting for RFID to add to DB");
@@ -340,6 +377,7 @@ void loop() {
         ble_write(SENDING_ENTERING_COMMAND_MODE);
         ble_do_events();
       }
+      checkForOpenCloseReset(value);
     }
   }
   else 
